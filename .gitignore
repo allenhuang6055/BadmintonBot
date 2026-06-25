@@ -2,4 +2,3 @@ node_modules
 .env
 credentials.json
 *.log
-.DS_Store

@@ -16,35 +16,47 @@ function getText(text, labels) {
   return "";
 }
 
+function normalizeDate(dateText) {
+  const now = new Date();
+  const year = now.getFullYear();
+
+  if (!dateText) {
+    return `${year}/${now.getMonth() + 1}/${now.getDate()}`;
+  }
+
+  if (/^\d{1,2}\/\d{1,2}$/.test(dateText)) {
+    return `${year}/${dateText}`;
+  }
+
+  return dateText;
+}
+
 function parseAccountMessage(text) {
-  if (!text.includes("記帳")) return null;
+  const isAccount =
+    text.includes("記帳") ||
+    text.includes("零打") ||
+    text.includes("球券") ||
+    text.includes("會員") ||
+    text.includes("耗球") ||
+    text.includes("耗用球數");
+
+  if (!isAccount) return null;
 
   const dateText = getText(text, ["日期"]);
-  if (!dateText) throw new Error("缺少日期");
-
-  const today = new Date();
-  const year = today.getFullYear();
-
-  let date = dateText;
-  if (/^\d{1,2}\/\d{1,2}$/.test(dateText)) {
-    date = `${year}/${dateText}`;
-  }
+  const date = normalizeDate(dateText);
 
   const dropIn = getNumber(text, ["暢打零打收費", "零打收入", "零打"]);
   const ticket = getNumber(text, ["球券收入", "球券"]);
   const member = getNumber(text, ["會員收入", "會員"]);
-  const balls = getNumber(text, ["耗用球數", "耗球", "耗用"]);
+  const balls = getNumber(text, ["耗用球數", "耗球", "球"]);
 
   const note = getText(text, ["備註"]);
 
-  return {
-    date,
-    dropIn,
-    ticket,
-    member,
-    balls,
-    note,
-  };
+  if (dropIn === 0 && ticket === 0 && member === 0 && balls === 0) {
+    throw new Error("沒有讀到金額或耗球數");
+  }
+
+  return { date, dropIn, ticket, member, balls, note };
 }
 
 module.exports = { parseAccountMessage };

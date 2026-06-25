@@ -3,7 +3,7 @@ require("dotenv").config();
 const express = require("express");
 const line = require("@line/bot-sdk");
 const { parseAccountMessage } = require("./accountParser");
-const { appendAccountRow } = require("./googleSheet");
+const { appendAccountRow, getSummary } = require("./googleSheet");
 
 const config = {
   channelSecret: process.env.LINE_CHANNEL_SECRET,
@@ -29,16 +29,86 @@ app.post("/webhook", line.middleware(config), async (req, res) => {
   }
 });
 
-async function handleEvent(event) {
-  if (event.type !== "message" || event.message.type !== "text") {
-    return;
-  }
+function menuMessage() {
+  return {
+    type: "text",
+    text: "請選擇功能：",
+    quickReply: {
+      items: [
+        { type: "action", action: { type: "message", label: "今日統計", text: "今天" } },
+        { type: "action", action: { type: "message", label: "本月統計", text: "本月" } },
+        { type: "action", action: { type: "message", label: "記帳範例", text: "記帳範例" } },
+      ],
+    },
+  };
+}
 
-  const text = event.message.text;
+function exampleText() {
+  return `記帳範例：
+
+完整格式：
+記帳
+日期:6/29
+耗用球數:20
+零打收入:500
+球券收入:1000
+會員收入:4500
+備註:阿明年費
+
+簡化格式：
+零打500 球券1000 會員4500 耗球20`;
+}
+
+async function replySummary(replyToken, type) {
+  const s = await getSummary(type);
+  const title = type === "today" ? "今日統計" : "本月統計";
+
+  return client.replyMessage({
+    replyToken,
+    messages: [{
+      type: "text",
+      text:
+`📊 ${title}
+
+零打收入：${s.dropIn} 元
+球券收入：${s.ticket} 元
+會員收入：${s.member} 元
+總收入：${s.total} 元
+
+耗用球數：${s.balls} 顆`
+    }],
+  });
+}
+
+async function handleEvent(event) {
+  if (event.type !== "message" || event.message.type !== "text") return;
+
+  const text = event.message.text.trim();
 
   try {
-    const data = parseAccountMessage(text);
+    if (text === "選單" || text === "功能") {
+      return client.replyMessage({
+        replyToken: event.replyToken,
+        messages: [menuMessage()],
+      });
+    }
 
+    if (text === "記帳範例") {
+      return client.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{ type: "text", text: exampleText() }],
+      });
+    }
+
+    if (text === "今天" || text === "今日") {
+      return replySummary(event.replyToken, "today");
+    }
+
+    if (text === "本月" || text === "月報") {
+      return replySummary(event.replyToken, "month");
+    }
+
+    const data = parseAccountMessage(text);
     if (!data) return;
 
     await appendAccountRow(data);
