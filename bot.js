@@ -36,30 +36,15 @@ app.post("/webhook", line.middleware(config), async (req, res) => {
   }
 });
 
-async function getUserInfo(event) {
+function getUserInfo(event) {
   const userId = event.source.userId || "";
-  let name = userId || "未知使用者";
+  const groupId = event.source.groupId || "";
+  const roomId = event.source.roomId || "";
 
-  try {
-    if (event.source.type === "user" && userId) {
-      const profile = await client.getProfile(userId);
-      name = profile.displayName || name;
-    }
-
-    if (event.source.type === "group" && event.source.groupId && userId) {
-      const profile = await client.getGroupMemberProfile(event.source.groupId, userId);
-      name = profile.displayName || name;
-    }
-
-    if (event.source.type === "room" && event.source.roomId && userId) {
-      const profile = await client.getRoomMemberProfile(event.source.roomId, userId);
-      name = profile.displayName || name;
-    }
-  } catch (err) {
-    console.error("取得 LINE 使用者名稱失敗：", err.message);
-  }
-
-  return { id: userId, name };
+  return {
+    id: userId || groupId || roomId || "unknown",
+    name: userId || groupId || roomId || "unknown",
+  };
 }
 
 async function replyText(replyToken, text) {
@@ -90,7 +75,7 @@ async function handleEvent(event) {
     }
 
     if (isIncomeRecord(text)) {
-      const user = await getUserInfo(event);
+      const user = getUserInfo(event);
       const result = await handleIncome(text, user);
       return replyText(event.replyToken, result);
     }
