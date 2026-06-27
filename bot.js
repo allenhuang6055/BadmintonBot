@@ -2,6 +2,7 @@ require("dotenv").config();
 
 const express = require("express");
 const line = require("@line/bot-sdk");
+const path = require("path");
 
 const { mainMenuMessage } = require("./config/menu");
 
@@ -44,12 +45,19 @@ const config = {
 
 const app = express();
 
+app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
+
 const client = new line.messagingApi.MessagingApiClient({
   channelAccessToken: config.channelAccessToken,
 });
 
 app.get("/", (req, res) => {
   res.send("BadmintonBot V5 is running");
+});
+
+app.get("/liff", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "liff", "index.html"));
 });
 
 app.post("/webhook", line.middleware(config), async (req, res) => {
@@ -91,6 +99,13 @@ async function handleEvent(event) {
         replyToken: event.replyToken,
         messages: [mainMenuMessage()],
       });
+    }
+
+    if (text === "表單" || text === "LIFF") {
+      return replyText(
+        event.replyToken,
+        "請開啟表單：https://badmintonbot-39ao.onrender.com/liff"
+      );
     }
 
     if (isIncomeCommand(text)) {
