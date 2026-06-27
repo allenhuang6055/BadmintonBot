@@ -4,12 +4,38 @@ const express = require("express");
 const line = require("@line/bot-sdk");
 
 const { mainMenuMessage } = require("./config/menu");
+
 const {
   incomeTemplateMessage,
   isIncomeCommand,
   isIncomeRecord,
   handleIncome,
 } = require("./commands/income");
+
+const {
+  expenseTemplateMessage,
+  isExpenseCommand,
+  isExpenseRecord,
+  handleExpense,
+} = require("./commands/expense");
+
+const {
+  paymentTemplateMessage,
+  isPaymentCommand,
+  isPaymentRecord,
+  handlePayment,
+} = require("./commands/payment");
+
+const {
+  isTodayQuery,
+  isMonthQuery,
+  isMyUnpaidQuery,
+  isAllUnpaidQuery,
+  handleTodayQuery,
+  handleMonthQuery,
+  handleMyUnpaidQuery,
+  handleAllUnpaidQuery,
+} = require("./commands/query");
 
 const config = {
   channelSecret: process.env.LINE_CHANNEL_SECRET,
@@ -74,10 +100,48 @@ async function handleEvent(event) {
       });
     }
 
+    if (isExpenseCommand(text)) {
+      return client.replyMessage({
+        replyToken: event.replyToken,
+        messages: [expenseTemplateMessage()],
+      });
+    }
+
+    if (isPaymentCommand(text)) {
+      return client.replyMessage({
+        replyToken: event.replyToken,
+        messages: [paymentTemplateMessage()],
+      });
+    }
+
+    const user = getUserInfo(event);
+
+    if (isTodayQuery(text)) {
+      return replyText(event.replyToken, await handleTodayQuery());
+    }
+
+    if (isMonthQuery(text)) {
+      return replyText(event.replyToken, await handleMonthQuery());
+    }
+
+    if (isMyUnpaidQuery(text)) {
+      return replyText(event.replyToken, await handleMyUnpaidQuery(user));
+    }
+
+    if (isAllUnpaidQuery(text)) {
+      return replyText(event.replyToken, await handleAllUnpaidQuery());
+    }
+
     if (isIncomeRecord(text)) {
-      const user = getUserInfo(event);
-      const result = await handleIncome(text, user);
-      return replyText(event.replyToken, result);
+      return replyText(event.replyToken, await handleIncome(text, user));
+    }
+
+    if (isExpenseRecord(text)) {
+      return replyText(event.replyToken, await handleExpense(text, user));
+    }
+
+    if (isPaymentRecord(text)) {
+      return replyText(event.replyToken, await handlePayment(text, user));
     }
 
     return;
@@ -96,7 +160,17 @@ async function handleEvent(event) {
 球券收入:1000
 會員收入:4500
 耗球:20
-備註:測試`
+備註:測試
+
+支出範例：
+支出
+項目:買球
+金額:6900
+備註:AS30
+
+交款範例：
+交款:6000
+備註:6月第4週`
     );
   }
 }
